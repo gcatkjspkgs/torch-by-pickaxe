@@ -1,0 +1,9 @@
+{
+    "author": "KostromDan",
+    "description": "A simple script that allows you to place torches by right-clicking with a pickaxe.",
+    
+    "versions": [9],
+    "modloaders": ["forge", "fabric"],
+    "dependencies": [],
+    "incompatibilities": []
+}
