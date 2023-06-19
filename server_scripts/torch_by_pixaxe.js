@@ -1,8 +1,6 @@
 const $UseOnContext = Java.loadClass('net.minecraft.world.item.context.UseOnContext')
 const $BlockHitResult = Java.loadClass('net.minecraft.world.phys.BlockHitResult')
-const $Vec3 = Java.loadClass('net.minecraft.world.phys.Vec3')
 const $BlockPos = Java.loadClass('net.minecraft.core.BlockPos')
-const $Items = Java.loadClass('net.minecraft.world.item.Items')
 
 let pickaxes = {
     tags: ['forge:tools/pickaxes', 'forge:tools/paxels', 'c:pickaxes'],
@@ -10,7 +8,7 @@ let pickaxes = {
 }
 let can_be_replaced_by_torch = {
     tags: ['minecraft:flowers', 'forge:mushrooms', 'minecraft:tall_flowers'],
-    items: ['minecraft:tall_grass', 'minecraft:large_fern', 'minecraft:grass', 'minecraft:fern', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'minecraft:sweet_berry_bush', 'minecraft:moss_carpet', 'biomesoplenty:huge_clover_petal', "projectvibrantjourneys:twigs", "projectvibrantjourneys:fallen_leaves", "projectvibrantjourneys:rocks", "projectvibrantjourneys:mossy_rocks", "projectvibrantjourneys:sandstone_rocks", "projectvibrantjourneys:red_sandstone_rocks", "projectvibrantjourneys:ice_chunks", "projectvibrantjourneys:bones", "projectvibrantjourneys:charred_bones", "projectvibrantjourneys:pinecones", "projectvibrantjourneys:seashells"]
+    items: ['projectvibrantjourneys:fallen_leaves', 'minecraft:tall_grass', 'minecraft:large_fern', 'minecraft:grass', 'minecraft:fern', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'minecraft:sweet_berry_bush', 'minecraft:moss_carpet', 'biomesoplenty:huge_clover_petal', "projectvibrantjourneys:twigs", "projectvibrantjourneys:fallen_leaves", "projectvibrantjourneys:rocks", "projectvibrantjourneys:mossy_rocks", "projectvibrantjourneys:sandstone_rocks", "projectvibrantjourneys:red_sandstone_rocks", "projectvibrantjourneys:ice_chunks", "projectvibrantjourneys:bones", "projectvibrantjourneys:charred_bones", "projectvibrantjourneys:pinecones", "projectvibrantjourneys:seashells"]
 }
 
 function is_item_includes_tags_or_items(tags_items_dict, item) {
@@ -30,8 +28,23 @@ function is_can_be_replaced_by_torch(item) {
     return is_item_includes_tags_or_items(can_be_replaced_by_torch, item);
 }
 
+function is_building_block(block) {
+    if (block == null) return false
+    let cat = block.getItem().getItemCategory()
+    if (cat==null) return false
+    return cat.getRecipeFolderName() == 'building_blocks'
+}
+
+function repair_off_hand_item_count_client_display(event) { //The workaround that fixes the kubejs mod visual bug. This is necessary so that the item is updated and the display starts working correctly again.
+    event.player.offHandItem.setHoverName('Torch!')
+    event.server.scheduleInTicks(1, callback => {
+        event.player.offHandItem.resetHoverName()
+    })
+}
+
 ItemEvents.rightClicked(event => {
     if (event.hand == 'main_hand' &&
+        !is_building_block(event.player.offHandItem) &&
         is_pickaxe(event.player.mainHandItem) &&
         (event.player.inventory.count('minecraft:torch') >= 2 || (event.player.offHandItem != 'minecraft:torch' && event.player.inventory.count('minecraft:torch') >= 1))) {
         let ray = event.player.rayTrace(8)
@@ -51,34 +64,32 @@ ItemEvents.rightClicked(event => {
             Utils.server.runCommandSilent(`/execute at ${event.player.uuid} run setblock ${x} ${y} ${z} air destroy`)
         }
 
+        let slot_id = event.player.inventory.find('minecraft:torch')
+        if (event.player.offHandItem == 'minecraft:torch' && event.player.offHandItem.count >= 2) {
+            slot_id = 40
+        }
+        let torch_itemstack = event.player.inventory.getStackInSlot(slot_id)
 
         let vec_3 = new $Vec3(x, y, z)
         let block_pos = new $BlockPos(x, y, z)
         let block_hit_result = new $BlockHitResult(vec_3, ray.facing, block_pos, false)
         let context = new $UseOnContext(event.player, event.hand, block_hit_result)
-        let items = new $Items()
-        let result = items.TORCH.useOn(context)
+        let result = torch_itemstack.getItem().useOn(context)
 
         if (result.consumesAction()) {
             if (context.getItemInHand().isEmpty()) context.getItemInHand().grow(1);
-            let slot_id = event.player.inventory.find('minecraft:torch')
-            if (event.player.offHandItem == 'minecraft:torch' && event.player.offHandItem.count >= 2) {
-                slot_id = 40
-            }
-            event.player.inventory.extractItem(slot_id, 1, false)
+            if (!event.player.getAbilities().instabuild) torch_itemstack.shrink(1);
         }
     }
 })
 
 BlockEvents.rightClicked(event => {
-    if (is_pickaxe(event.player.mainHandItem) &&
-        event.player.offHandItem == 'minecraft:torch') {
+    if (!is_pickaxe(event.player.mainHandItem)) return;
+
+    if (event.player.offHandItem == 'minecraft:torch') {
         if (event.hand == 'off_hand') {
             event.cancel()
-            event.player.offHandItem.setHoverName('Torch!') //The workaround that fixes the kubejs mod visual bug. This is necessary so that the item is updated and the display starts working correctly again.
-            event.server.scheduleInTicks(1, callback => {
-                event.player.offHandItem.resetHoverName()
-            })
+            repair_off_hand_item_count_client_display()
         } else if (!event.player.stages.has('notified_about_torch')) {
             event.player.stages.add('notified_about_torch')
             event.player.tell("In this modpack you don't need to hold torch in off hand with pickaxe in main hand to place torch! You can place torches directly from inventory!")
