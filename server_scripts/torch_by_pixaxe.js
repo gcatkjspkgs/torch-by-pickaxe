@@ -12,7 +12,7 @@ let pickaxes = {
 }
 let can_be_replaced_by_torch = {
     tags: ['minecraft:flowers', 'forge:mushrooms', 'minecraft:tall_flowers'],
-    items: ['projectvibrantjourneys:fallen_leaves', 'minecraft:tall_grass', 'minecraft:large_fern', 'minecraft:grass', 'minecraft:fern', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'minecraft:sweet_berry_bush', 'minecraft:moss_carpet', 'biomesoplenty:huge_clover_petal', "projectvibrantjourneys:twigs", "projectvibrantjourneys:fallen_leaves", "projectvibrantjourneys:rocks", "projectvibrantjourneys:mossy_rocks", "projectvibrantjourneys:sandstone_rocks", "projectvibrantjourneys:red_sandstone_rocks", "projectvibrantjourneys:ice_chunks", "projectvibrantjourneys:bones", "projectvibrantjourneys:charred_bones", "projectvibrantjourneys:pinecones", "projectvibrantjourneys:seashells"]
+    items: ['projectvibrantjourneys:small_cactus', 'projectvibrantjourneys:fallen_leaves', 'minecraft:tall_grass', 'minecraft:large_fern', 'minecraft:grass', 'minecraft:fern', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'minecraft:sweet_berry_bush', 'minecraft:moss_carpet', 'biomesoplenty:huge_clover_petal', "projectvibrantjourneys:twigs", "projectvibrantjourneys:fallen_leaves", "projectvibrantjourneys:rocks", "projectvibrantjourneys:mossy_rocks", "projectvibrantjourneys:sandstone_rocks", "projectvibrantjourneys:red_sandstone_rocks", "projectvibrantjourneys:ice_chunks", "projectvibrantjourneys:bones", "projectvibrantjourneys:charred_bones", "projectvibrantjourneys:pinecones", "projectvibrantjourneys:seashells"]
 }
 
 let players_already_using_torch_by_pickaxe = []
@@ -112,19 +112,19 @@ function process_right_click(event, is_block_right_click) {
         let torch_itemstack = event.player.inventory.getStackInSlot(slot_id)
 
         let vec_3 = new $Vec3(x, y, z)
-        let block_pos = new $BlockPos(x, y, z)
+        let block_pos = new $BlockPos(vec_3)
         let block_hit_result = new $BlockHitResult(vec_3, ray.facing, block_pos, false)
         let context = new $UseOnContext(event.player, event.hand, block_hit_result)
         let result = torch_itemstack.getItem().useOn(context)
 
         if (result.consumesAction()) {
-            if (context.getItemInHand().isEmpty()) context.getItemInHand().grow(1);
-            if (!event.player.getAbilities().instabuild) torch_itemstack.shrink(1);
             if (gen_sound) {
                 let block = torch_itemstack.getItem().getBlock()
                 let sound_event = block.getSoundType(block.defaultBlockState()).getPlaceSound()
                 event.level.playSound(null, block_pos, sound_event, $SoundSource.BLOCKS, 1.0, 0.8)
             }
+            if (context.getItemInHand().isEmpty()) context.getItemInHand().grow(1);
+            if (!event.player.getAbilities().instabuild) torch_itemstack.shrink(1);
             event.cancel()
         }
     }
@@ -132,6 +132,9 @@ function process_right_click(event, is_block_right_click) {
 
 ItemEvents.rightClicked(event => {
     process_right_click(event, false)
+    if (event.player.offHandItem == torch_id && event.player.offHandItem.count == 1 && event.player.inventory.count(torch_id) >= 2) {
+        event.server.runCommandSilent(`title ${event.player.username} actionbar " "`) //Compatibility with Client Tweaks mod
+    }
 })
 
 BlockEvents.rightClicked(event => {
