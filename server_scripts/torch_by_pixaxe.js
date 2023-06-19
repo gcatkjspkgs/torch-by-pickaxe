@@ -1,5 +1,6 @@
 const $UseOnContext = Java.loadClass('net.minecraft.world.item.context.UseOnContext')
 const $BlockHitResult = Java.loadClass('net.minecraft.world.phys.BlockHitResult')
+const $Vec3 = Java.loadClass('net.minecraft.world.phys.Vec3')
 const $BlockPos = Java.loadClass('net.minecraft.core.BlockPos')
 
 let pickaxes = {
