@@ -1,6 +1,6 @@
 {
     "author": "KostromDan",
-    "description": "More info: <https://github.com/gcatkjspkgs/torch-by-pickaxe/tree/main#readme>",
+    "description": "More info: https://github.com/gcatkjspkgs/torch-by-pickaxe/tree/main#readme",
     
     "versions": [9],
     "modloaders": ["forge", "fabric"],
