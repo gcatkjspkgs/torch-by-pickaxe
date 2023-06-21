@@ -1,6 +1,7 @@
 # Torch By Pickaxe
 A simple KubeJs script that allows you to place torches by right-clicking with a pickaxe. Made by KostromDan, packaged for KJSPKG.
 ### Features:
+- Compatible with Forge/Fabric modloaders.
 - Place torch on right click with pickaxe.
 - The torch now replaces all grass, flowers, mushrooms, vines and other items that logically can be replaced by a torch, but not in the original minecraft.
 - Breaking torch with pickaxe will lead to instant pick up of torch.
