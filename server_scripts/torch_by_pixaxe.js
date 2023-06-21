@@ -10,7 +10,11 @@ let wall_torch_id = 'minecraft:wall_torch'
 
 let additional_reach_distance = 3
 
-let pickaxes = JsonIO.read('kubejs/torch_by_pickaxe_pickaxes.json')
+let pickaxes = {
+    tags: ['forge:tools/pickaxes', 'forge:tools/paxels', 'c:pickaxes'],
+    items: []
+}
+
 let originally_can_be_replaced_by_torch = ['minecraft:grass', 'minecraft:fern', 'minecraft:tall_grass', 'minecraft:large_fern']
 let additionally_can_be_replaced_by_torch = ['biomesoplenty:huge_clover_petal', 'minecraft:moss_carpet', 'minecraft:sweet_berry_bush', 'projectvibrantjourneys:twigs', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:rocks', 'projectvibrantjourneys:mossy_rocks', 'projectvibrantjourneys:sandstone_rocks', 'projectvibrantjourneys:red_sandstone_rocks', 'projectvibrantjourneys:ice_chunks', 'projectvibrantjourneys:bones', 'projectvibrantjourneys:charred_bones', 'projectvibrantjourneys:pinecones', 'projectvibrantjourneys:seashells', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:small_cactus']
 
@@ -244,6 +248,8 @@ function break_torch(player, x, y, z, drop, sound) {
 
 function process_pickaxe_left_click(event, event_type) {
     if (players_already_using_torch_by_pickaxe_left_click.includes(event.player.username)) return;
+    if (!is_pickaxe(event.player.mainHandItem)) return;
+
 
     let block = null
     if (event_type == 'client') {
@@ -252,7 +258,6 @@ function process_pickaxe_left_click(event, event_type) {
 
     } else if (event_type == 'block') {
         block = event.block
-        if (!is_pickaxe(event.player.mainHandItem)) return;
     }
     if (block == null) return;
     if (is_torch(block)) {
@@ -260,10 +265,7 @@ function process_pickaxe_left_click(event, event_type) {
             event.cancel()
         }
     } else return;
-    players_already_using_torch_by_pickaxe_left_click.push(event.player.username)
-    event.server.scheduleInTicks(1, callback => {
-        players_already_using_torch_by_pickaxe_left_click = players_already_using_torch_by_pickaxe_left_click.filter((el) => el !== event.player.username);
-    })
+
     let x = block.x
     let y = block.y
     let z = block.z
@@ -271,6 +273,11 @@ function process_pickaxe_left_click(event, event_type) {
     if (!can_player_build(event.player, event.player.mainHandItem, x, y, z)) {
         return;
     }
+
+    players_already_using_torch_by_pickaxe_left_click.push(event.player.username)
+    event.server.scheduleInTicks(1, callback => {
+        players_already_using_torch_by_pickaxe_left_click = players_already_using_torch_by_pickaxe_left_click.filter((el) => el !== event.player.username);
+    })
 
     let play_sound = event_type == 'client'
 
@@ -296,6 +303,6 @@ BlockEvents.leftClicked(event => {
     process_pickaxe_left_click(event, 'block')
 })
 
-NetworkEvents.fromClient('torch_by_pickaxe_left_clicked', event => {
+NetworkEvents.fromClient('left_clicked', event => {
     process_pickaxe_left_click(event, 'client')
 })
