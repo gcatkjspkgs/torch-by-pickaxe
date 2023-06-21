@@ -296,7 +296,7 @@ function process_pickaxe_left_click(event, event_type) {
         break_torch(event.player, x, y, z, false, play_sound)
         return;
     }
-    break_torch(event.player, x, y, z, false, false)
+    break_torch(event.player, x, y, z, true, false)
 }
 
 BlockEvents.leftClicked(event => {
