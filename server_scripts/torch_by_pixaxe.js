@@ -4,6 +4,9 @@ const $BlockPos = Java.loadClass('net.minecraft.core.BlockPos')
 const $SoundSource = Java.loadClass('net.minecraft.sounds.SoundSource')
 const $ChunkPos = Java.loadClass('net.minecraft.world.level.ChunkPos')
 const $Vec3 = Java.loadClass('net.minecraft.world.phys.Vec3')
+const $BlockContainerJS = Java.loadClass('dev.latvian.mods.kubejs.level.BlockContainerJS')
+const $RayTraceResultJS = Java.loadClass('dev.latvian.mods.kubejs.entity.RayTraceResultJS')
+const $ClipContext = Java.loadClass('net.minecraft.world.level.ClipContext')
 
 let torch_id = 'minecraft:torch'
 let wall_torch_id = 'minecraft:wall_torch'
@@ -16,7 +19,7 @@ let pickaxes = {
 }
 
 let originally_can_be_replaced_by_torch = ['minecraft:grass', 'minecraft:fern', 'minecraft:tall_grass', 'minecraft:large_fern']
-let additionally_can_be_replaced_by_torch = ['biomesoplenty:huge_clover_petal', 'minecraft:moss_carpet', 'minecraft:sweet_berry_bush', 'projectvibrantjourneys:twigs', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:rocks', 'projectvibrantjourneys:mossy_rocks', 'projectvibrantjourneys:sandstone_rocks', 'projectvibrantjourneys:red_sandstone_rocks', 'projectvibrantjourneys:ice_chunks', 'projectvibrantjourneys:bones', 'projectvibrantjourneys:charred_bones', 'projectvibrantjourneys:pinecones', 'projectvibrantjourneys:seashells', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:small_cactus']
+let additionally_can_be_replaced_by_torch = ['minecraft:seagrass', 'biomesoplenty:huge_clover_petal', 'minecraft:moss_carpet', 'minecraft:sweet_berry_bush', 'projectvibrantjourneys:twigs', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:rocks', 'projectvibrantjourneys:mossy_rocks', 'projectvibrantjourneys:sandstone_rocks', 'projectvibrantjourneys:red_sandstone_rocks', 'projectvibrantjourneys:ice_chunks', 'projectvibrantjourneys:bones', 'projectvibrantjourneys:charred_bones', 'projectvibrantjourneys:pinecones', 'projectvibrantjourneys:seashells', 'projectvibrantjourneys:light_brown_bark_mushroom', 'projectvibrantjourneys:bark_mushroom', 'projectvibrantjourneys:orange_bark_mushroom', 'projectvibrantjourneys:glowing_blue_fungus', 'projectvibrantjourneys:dead_fallen_leaves', 'projectvibrantjourneys:prickly_bush', 'projectvibrantjourneys:fallen_leaves', 'projectvibrantjourneys:small_cactus']
 
 let force_gen_sound_items_tags = {
     tags: ['minecraft:flowers', 'forge:mushrooms', 'minecraft:tall_flowers'],
@@ -33,6 +36,9 @@ let players_already_using_torch_by_pickaxe_left_click = []
 let players_torch_by_pickaxe_mute_sound = []
 
 function is_item_includes_tags_or_items(tags_items_dict, item) {
+    if (item instanceof $BlockContainerJS) {
+        item = item.getItem()
+    }
     for (const tag of tags_items_dict['tags']) {
         if (item.hasTag(tag)) {
             return true;
@@ -99,6 +105,21 @@ function can_player_build(player, hand_item, x, y, z) {
     }
 }
 
+function advanced_ray_trace(distance, player, block, fluid) {
+    let xRot = player.xRotO
+    let yRot = player.yRotO;
+    let fromPos = player.getEyePosition(1);
+    let x0 = Math.sin(-yRot * 0.017453292519943295 - 3.1415927410125732);
+    let z0 = Math.cos(-yRot * 0.017453292519943295 - 3.1415927410125732);
+    let y0 = -Math.cos(-xRot * 0.017453292519943295);
+    let y = Math.sin(-xRot * 0.017453292519943295);
+    let x = x0 * y0;
+    let z = z0 * y0;
+    let toPos = fromPos.add(x * distance, y * distance, z * distance);
+    let hitResult = player.level.clip(new $ClipContext(fromPos, toPos, block, fluid, player));
+    return new $RayTraceResultJS(player, hitResult, distance);
+}
+
 function process_right_click(event, cancel_event) {
     if (event.hand == 'main_hand' &&
         !is_building_block(event.player.offHandItem) &&
@@ -115,7 +136,7 @@ function process_right_click(event, cancel_event) {
             event.cancel()
         }
 
-        let ray = event.player.rayTrace(event.player.getReachDistance() + additional_reach_distance)
+        let ray = advanced_ray_trace(event.player.getReachDistance() + additional_reach_distance, event.player, $ClipContext.Block.OUTLINE, $ClipContext.Fluid.NONE)
         if (ray.block == null) {
             return;
         }
@@ -177,7 +198,7 @@ function process_right_click(event, cancel_event) {
 
         let slot_id = event.player.inventory.find(torch_id)
         if (event.player.offHandItem == torch_id && event.player.offHandItem.count >= 2) {
-            // slot_id = event.player.inventory.SLOT_OFFHAND
+            slot_id = event.player.inventory.SLOT_OFFHAND
         }
         let torch_itemstack = null
         if (!event.player.getAbilities().instabuild) {
@@ -214,7 +235,7 @@ ItemEvents.rightClicked(event => {
 })
 
 BlockEvents.rightClicked(event => {
-    if (!is_pickaxe(event.player.mainHandItem) || event.player.inventory.count(torch_id) == 0) return;
+    if (!is_pickaxe(event.player.mainHandItem)) return;
     if (event.block.getId().startsWith('projectvibrantjourneys:')) {
         process_right_click(event, true)
     }
@@ -253,9 +274,8 @@ function process_pickaxe_left_click(event, event_type) {
 
     let block = null
     if (event_type == 'client') {
-        let ray = event.player.rayTrace(event.player.getReachDistance() + additional_reach_distance)
+        let ray = advanced_ray_trace(event.player.getReachDistance() + additional_reach_distance, event.player, $ClipContext.Block.OUTLINE, $ClipContext.Fluid.NONE)
         block = ray.block
-
     } else if (event_type == 'block') {
         block = event.block
     }
