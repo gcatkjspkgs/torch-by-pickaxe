@@ -1,6 +1,6 @@
 {
     "author": "KostromDan",
-    "description": "A simple script that allows you to place torches by right-clicking with a pickaxe.",
+    "description": "More info: https://github.com/gcatkjspkgs/torch-by-pickaxe/tree/main#readme",
     
     "versions": [9],
     "modloaders": ["forge", "fabric"],
