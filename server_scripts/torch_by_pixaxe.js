@@ -6,12 +6,12 @@ const $ChunkPos = Java.loadClass('net.minecraft.world.level.ChunkPos')
 const $Vec3 = Java.loadClass('net.minecraft.world.phys.Vec3')
 const $BlockContainerJS = Java.loadClass('dev.latvian.mods.kubejs.level.BlockContainerJS')
 const $RayTraceResultJS = Java.loadClass('dev.latvian.mods.kubejs.entity.RayTraceResultJS')
-const $ClipContext = Java.loadClass('net.minecraft.world.level.ClipContext')
 
 let torch_id = 'minecraft:torch'
 let wall_torch_id = 'minecraft:wall_torch'
 
-let additional_reach_distance = 3
+let additional_reach_distance_place = 3
+let additional_reach_distance_break = 5
 
 let pickaxes = {
     tags: ['forge:tools/pickaxes', 'forge:tools/paxels', 'c:pickaxes'],
@@ -105,18 +105,8 @@ function can_player_build(player, hand_item, x, y, z) {
     }
 }
 
-function advanced_ray_trace(distance, player, block, fluid) {
-    let xRot = player.xRotO
-    let yRot = player.yRotO;
-    let fromPos = player.getEyePosition(1);
-    let x0 = Math.sin(-yRot * 0.017453292519943295 - 3.1415927410125732);
-    let z0 = Math.cos(-yRot * 0.017453292519943295 - 3.1415927410125732);
-    let y0 = -Math.cos(-xRot * 0.017453292519943295);
-    let y = Math.sin(-xRot * 0.017453292519943295);
-    let x = x0 * y0;
-    let z = z0 * y0;
-    let toPos = fromPos.add(x * distance, y * distance, z * distance);
-    let hitResult = player.level.clip(new $ClipContext(fromPos, toPos, block, fluid, player));
+function advanced_ray_trace(player, distance, ignore_liquid) {
+    let hitResult = player.pick(distance, 1, !ignore_liquid)
     return new $RayTraceResultJS(player, hitResult, distance);
 }
 
@@ -136,7 +126,7 @@ function process_right_click(event, cancel_event) {
             event.cancel()
         }
 
-        let ray = advanced_ray_trace(event.player.getReachDistance() + additional_reach_distance, event.player, $ClipContext.Block.OUTLINE, $ClipContext.Fluid.NONE)
+        let ray = advanced_ray_trace(event.player, event.player.getReachDistance() + additional_reach_distance_place, true)
         if (ray.block == null) {
             return;
         }
@@ -251,7 +241,7 @@ BlockEvents.rightClicked(event => {
     }
     if (!event.player.stages.has('notified_about_torch')) {
         event.player.stages.add('notified_about_torch')
-        event.player.tell(`In this modpack you don't need to hold torch in off hand with pickaxe in main hand to place torch. You can place torches directly from inventory. Also, breaking the torch with a pickaxe will lead to an instantaneous picking up of the torch. You don't have to run for it to pick up. Also, for convenience, the distance of placing / breaking the torch has been increased by ${additional_reach_distance}.`)
+        event.player.tell(`In this modpack you don't need to hold torch in off hand with pickaxe in main hand to place torch. You can place torches directly from inventory.`)
     }
 })
 
@@ -274,17 +264,14 @@ function process_pickaxe_left_click(event, event_type) {
 
     let block = null
     if (event_type == 'client') {
-        let ray = advanced_ray_trace(event.player.getReachDistance() + additional_reach_distance, event.player, $ClipContext.Block.OUTLINE, $ClipContext.Fluid.NONE)
+        let ray = advanced_ray_trace(event.player, event.player.getReachDistance() + additional_reach_distance_break, true)
         block = ray.block
     } else if (event_type == 'block') {
         block = event.block
     }
     if (block == null) return;
-    if (is_torch(block)) {
-        if (event_type != 'client') {
-            event.cancel()
-        }
-    } else return;
+    if (!is_torch(block)) return;
+    if (event_type != 'client') event.cancel();
 
     let x = block.x
     let y = block.y
